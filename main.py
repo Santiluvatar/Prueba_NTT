@@ -1,12 +1,11 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Query
 from typing import List
 import os
 import joblib
 import glob
 import pandas as pd
 
-# Tu función de cargar modelos
+# Función para cargar modelo
 def cargar_modelo_por_pais(pais, ruta="modelos_guardados"):
     pais_formateado = pais.replace(" ", "_").replace("(", "").replace(")", "").replace("/", "")
     patron = os.path.join(ruta, f"{pais_formateado}_*.joblib")
@@ -22,7 +21,7 @@ def cargar_modelo_por_pais(pais, ruta="modelos_guardados"):
     
     return nombre_modelo, modelo
 
-# Tu función de predicción
+# Función para predecir
 def Prediccion_Consumo(pais, listaFechas):
     nombre_modelo, model = cargar_modelo_por_pais(pais)
 
@@ -45,21 +44,20 @@ def Prediccion_Consumo(pais, listaFechas):
 
     raise ValueError("Modelo no soportado")
 
-# Iniciar la app
+# Crear la app FastAPI
 app = FastAPI()
 
-# Definir el esquema de entrada usando Pydantic
-class PrediccionRequest(BaseModel):
-    pais: str
-    fechas: List[int]
-
-# Ruta para predicción
-@app.post("/predecir/")
-def predecir_consumo(data: PrediccionRequest):
+# Nuevo endpoint: GET con query params
+@app.get("/predecir")
+def predecir(pais: str, fechas: str = Query(..., description="Lista de años separados por coma")):
     try:
-        resultado = Prediccion_Consumo(data.pais, data.fechas)
+        # Convertir string a lista de enteros
+        lista_fechas = [int(x) for x in fechas.split(",")]
+        resultado = Prediccion_Consumo(pais, lista_fechas)
         return resultado
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
